@@ -1,0 +1,48 @@
+{
+  "title": "VeilAssessment",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "proceed",
+        "ask",
+        "hold"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rule_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "VEIL-001",
+          "VEIL-002",
+          "VEIL-003",
+          "VEIL-004",
+          "VEIL-005",
+          "VEIL-006",
+          "VEIL-007"
+        ]
+      }
+    },
+    "question": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "decision",
+    "reason",
+    "rule_ids",
+    "question"
+  ]
+}
