@@ -15,20 +15,27 @@ def live_assessor():
     return LangChainAssessor(ChatOpenAI(model=model, timeout=30, max_retries=0))
 
 def review(action, context, assessor_factory=live_assessor):
-    policy = load_policy()
     base = {"mode":"live", "advisory_only":True, "authorization_verified":False,
             "eligible_to_execute":False, "execution_performed":False,
-            "policy_id":policy["policy_id"], "policy_version":policy["version"],
-            "policy_sha256":hashlib.sha256(json.dumps(policy,sort_keys=True).encode()).hexdigest()}
-    if any(not isinstance(v,str) or not v.strip() or len(v)>20000 for v in (action,context)):
-        return {**base, "status":"error", "decision":"hold", "reason":"Provide action and context, each 1–20,000 characters.", "rule_ids":["VEIL-005"], "question":None}
-    request={"request_id":"advisory-review","action":action,"context":context}
+            "policy_id":None, "policy_version":None, "policy_sha256":None}
     try:
+        policy = load_policy()
+        if not isinstance(policy, dict):
+            raise TypeError("Policy must be an object")
+        base.update({"policy_id":policy["policy_id"], "policy_version":policy["version"],
+                     "policy_sha256":hashlib.sha256(json.dumps(policy,sort_keys=True).encode()).hexdigest()})
+        if any(not isinstance(v,str) or not v.strip() or len(v)>20000 for v in (action,context)):
+            return {**base, "status":"error", "decision":"hold", "reason":"Provide action and context, each 1–20,000 characters.", "rule_ids":["VEIL-005"], "question":None}
+        request={"request_id":"advisory-review","action":action,"context":context}
         assessment=validate_assessment(assessor_factory()(request,policy),policy)
         return {**base, **assessment, "status":"evaluated"}
+    except TypeError:
+        return {**base, "status":"error", "decision":"hold",
+                "reason":"Policy or assessment has an invalid type. Review configuration before retrying.",
+                "rule_ids":["VEIL-005","VEIL-007"], "question":None}
     except Exception:
         return {**base, "status":"error", "decision":"hold",
-                "reason":"Live assessment unavailable or invalid. Check model configuration and provider access.",
+                "reason":"Assessment unavailable or invalid. Check policy files, model configuration and provider access.",
                 "rule_ids":["VEIL-005","VEIL-007"], "question":None}
 
 def scenarios():

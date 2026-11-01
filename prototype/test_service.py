@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from service import review, demo
 class ServiceTests(unittest.TestCase):
     def test_live_contract(self):
@@ -30,3 +30,32 @@ class ServiceTests(unittest.TestCase):
         def fail(): self.fail("Provider invoked")
         for action in ("","x"*20001,None):
             self.assertEqual(review(action,"context",fail)["status"],"error")
+
+    def test_null_policy_returns_type_error_hold(self):
+        factory = Mock()
+        with patch("service.load_policy", return_value=None):
+            r = review("Test", "Context", factory)
+        self.assertEqual(r["status"], "error")
+        self.assertEqual(r["decision"], "hold")
+        self.assertIn("invalid type", r["reason"])
+        self.assertIsNone(r["policy_sha256"])
+        self.assertIsNone(r["policy_id"])
+        self.assertIsNone(r["policy_version"])
+        self.assertFalse(r["eligible_to_execute"])
+        factory.assert_not_called()
+
+    def test_policy_file_failures_hold_without_provider(self):
+        for contents in ("null", "{", '{"rules": []}'):
+            with self.subTest(contents=contents):
+                factory = Mock()
+                with patch("core.Path.read_text", return_value=contents):
+                    r = review("Test", "Context", factory)
+                self.assertEqual((r["status"], r["decision"]), ("error", "hold"))
+                self.assertIsNone(r["policy_sha256"])
+                factory.assert_not_called()
+        factory = Mock()
+        with patch("core.Path.read_text", side_effect=FileNotFoundError("private path")):
+            r = review("Test", "Context", factory)
+        self.assertEqual((r["status"], r["decision"]), ("error", "hold"))
+        self.assertNotIn("private path", r["reason"])
+        factory.assert_not_called()
