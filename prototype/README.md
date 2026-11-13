@@ -59,3 +59,25 @@ Offline results remain fixture-based. The adapter test verifies that all four re
 
 ## Paired evaluation addition
 Ten new paired situations (20 cases) are in paired-inputs.json; expected outcomes and reviewer metadata are separate. Read PAIR-EVALUATION.md before model testing. Run python validate_pairs.py for offline data validation. Policy remains 0.0.2. No live comparison has run.
+
+## Paced live comparison
+
+From the repository root:
+
+```bash
+python prototype/compare_live.py --stream --max-tokens 1024 --min-interval 2 --max-retries 2 --max-retry-wait 30
+```
+
+Defaults are 1,024 completion tokens, two seconds between request starts, and at most two retries per arm. Both arms share the same sequential controller. SDK retries are disabled. This is per-process pacing, not a distributed limiter or a tokens-per-minute quota manager.
+
+Only explicitly classified temporary HTTP 429 rate limits are retried. Backoff starts at one second, doubles with each retry, and adds up to one second of jitter. Provider Retry-After seconds/date and retry-after-ms are respected. The larger of backoff, provider delay, and remaining request spacing determines when another attempt can start. A provider/backoff delay over the configured wait limit stops the run instead of retrying early. Exhausted retry budgets and confirmed quota/billing failures skip subsequent arms. Unknown errors, timeouts, and malformed judgments are not automatically retried.
+
+The JSON report includes request_settings and per-arm request_metrics (attempt count via the attempts list, actual planned delays, safe status/code/category). Raw provider bodies and messages are excluded. A skipped arm is not an evaluated decision; errors/skips return a nonzero exit status. Streaming previews are labeled by attempt and remain provisional until the complete response passes validation. Retry history must be considered when comparing arms; this fixed-order single-case pilot is not an effectiveness benchmark.
+
+Run offline verification without an API key or credits:
+
+```bash
+python -m unittest discover -s prototype -v
+```
+
+Fake-clock tests cover spacing, backoff/jitter, provider delays, exhausted retries, billing stops, unknown errors, invalid judgments, and configuration limits. Live evaluation is still pending API funding.
