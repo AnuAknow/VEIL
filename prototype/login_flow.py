@@ -47,7 +47,10 @@ class OfflineLoginGate:
         policy = load_policy()
         digest = hashlib.sha256(json.dumps(policy, sort_keys=True).encode()).hexdigest()
         evidence = {'policy_version': policy['version'], 'policy_sha256': digest}
-        if not isinstance(request, LoginRequest) or not request.principal or not request.target:
+        if not isinstance(request, LoginRequest) or any(
+            not isinstance(value, str) or not value.strip()
+            for value in (request.principal, request.target, request.method)
+        ):
             return 'hold', 'INVALID_REQUEST', None, evidence
         if request.method != 'negative_login' or type(request.attempts) is not int or request.attempts != 1:
             return 'hold', 'METHOD_OR_BUDGET_VIOLATION', None, evidence
