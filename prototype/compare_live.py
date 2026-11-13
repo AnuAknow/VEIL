@@ -65,13 +65,17 @@ def compare(runner, model, stream=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stream", action="store_true", help="Show provisional response text on stderr as it arrives.")
+    parser.add_argument("--max-tokens", type=int, default=1024, help="Maximum completion tokens per request (default: 1024).")
     args = parser.parse_args()
+    if args.max_tokens < 1:
+        parser.error("--max-tokens must be a positive integer")
     model = os.getenv("VEIL_MODEL", "").strip()
     if not model or not os.getenv("OPENAI_API_KEY"):
         sys.exit("Set VEIL_MODEL and OPENAI_API_KEY in the environment.")
     from langchain_openai import ChatOpenAI
-    runner = ChatOpenAI(model=model, timeout=30, max_retries=0, streaming=args.stream).with_structured_output(Judgment, method="json_schema")
+    runner = ChatOpenAI(model=model, timeout=30, max_retries=0, streaming=args.stream, max_tokens=args.max_tokens).with_structured_output(Judgment, method="json_schema")
     report = compare(runner, model, stream=args.stream)
+    report["max_tokens"] = args.max_tokens
     print(json.dumps(report, indent=2))
     return int(any(row["status"] == "error" for row in report["results"].values()))
 
