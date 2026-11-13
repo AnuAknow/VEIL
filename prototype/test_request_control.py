@@ -112,3 +112,11 @@ class RequestControlTests(unittest.TestCase):
                        {'retries': -1}, {'retries': 6}, {'max_wait': float('inf')}]:
             with self.assertRaises(ValueError):
                 self.setup_controller(**kwargs)
+
+    def test_malformed_provider_code_is_reported_without_retry(self):
+        c = self.setup_controller()
+        op = Mock(side_effect=ProviderError({'unexpected': 'secret'}, kind=['invalid']))
+        _, metrics = c.call(op)
+        self.assertEqual(op.call_count, 1)
+        self.assertEqual(metrics['error_code'], 'unclassified')
+        self.assertNotIn('secret', str(metrics))

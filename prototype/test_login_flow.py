@@ -111,6 +111,8 @@ class LoginFlowTests(unittest.TestCase):
         self.assertEqual(len(self.gate.mock_calls), 0)
 
     def test_invalid_scope_budget_and_clock(self):
+        for principal in [None, 123, '', '   ']:
+            self.assertEqual(self.gate.evaluate(replace(self.request, principal=principal))['decision'], 'hold')
         for request in [replace(self.request, attempts=True), replace(self.request, attempts=2),
                         replace(self.request, target='production')]:
             self.assertEqual(self.gate.evaluate(request)['decision'], 'hold')

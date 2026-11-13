@@ -18,6 +18,8 @@ def error_details(exc):
     body = body if isinstance(body, dict) else {}
     code = getattr(exc, "code", None) or body.get("code")
     kind = body.get("type") or getattr(exc, "type", None)
+    code = code if isinstance(code, str) else None
+    kind = kind if isinstance(kind, str) else None
     status = getattr(exc, "status_code", None)
     # Only known codes are exposed; arbitrary provider text may contain secrets.
     billing = code in BILLING or kind in BILLING
